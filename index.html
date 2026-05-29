@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NAGA — CanSat Ground Station</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=DM+Mono:wght@300;400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+<canvas id="holoCanvas"></canvas>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="logo-wrap">
+    <div class="logo-icon">🚀</div>
+    <div class="logo-text">NAGA</div>
+  </div>
+  <div class="nav-item active" title="Ground Station" onclick="showPage('ground')">🚀</div>
+  <div class="nav-item" title="CanSat" onclick="showPage('cansat')">🛰️</div>
+  <div class="sidebar-bottom">
+    <div class="status-dot"></div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+
+  <!-- PAGE: GROUND STATION -->
+  <div id="page-ground" class="page">
+
+  <!-- TOPBAR -->
+  <div class="topbar topbar-centered">
+    <div class="topbar-side">
+      <div class="live-badge">
+        <div class="live-dot"></div>
+        LIVE
+      </div>
+    </div>
+    <div class="topbar-center">
+      <div class="naga-neon">NAGA</div>
+      <div style="font-size:18px;font-weight:700;letter-spacing:3px;font-family:'Orbitron',monospace;color:var(--text-secondary);margin-top:2px;">GROUND STATION</div>
+    </div>
+    <div class="topbar-side" style="justify-content:flex-end;">
+      <div class="time-display" id="clockDisplay">00:00:00</div>
+    </div>
+  </div>
+
+  <!-- DASHBOARD GRID -->
+  <div class="dashboard-grid">
+
+    <!-- 1. Altitude Kalman -->
+    <div class="card">
+      <div class="corner-deco tl"></div><div class="corner-deco tr"></div>
+      <div class="corner-deco bl"></div><div class="corner-deco br"></div>
+      <div class="card-header">
+        <div class="card-title"><span class="card-icon">📈</span> ALTITUDE — KALMAN FILTER</div>
+        <div class="card-badge">FILTERED</div>
+      </div>
+      <div class="chart-container">
+        <canvas id="altKalmanChart"></canvas>
+      </div>
+    </div>
+
+    <!-- 2. Raw Altitude -->
+    <div class="card">
+      <div class="corner-deco tl"></div><div class="corner-deco tr"></div>
+      <div class="corner-deco bl"></div><div class="corner-deco br"></div>
+      <div class="card-header">
+        <div class="card-title"><span class="card-icon">📉</span> RAW ALTITUDE — SENSOR</div>
+        <div class="card-badge">RAW</div>
+      </div>
+      <div class="chart-container">
+        <canvas id="altRawChart"></canvas>
+      </div>
+    </div>
+
+    <!-- MAP + STATS right column -->
+    <div class="map-section">
+      <!-- Map -->
+      <div class="map-card" style="display:flex;flex-direction:column;padding:12px;">
+        <div class="corner-deco tl"></div><div class="corner-deco tr"></div>
+        <div class="corner-deco bl"></div><div class="corner-deco br"></div>
+        <div class="map-title">
+          <span>📍 LIVE POSITION</span>
+          <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--sky);letter-spacing:1px;font-weight:400;">13.5752, 100.5715</span>
+        </div>
+        <div id="gmap">
+          <canvas id="mapCanvas"></canvas>
+        </div>
+        <div class="coords-display">
+          <span>LAT: <span class="coords-val" id="latVal">13.575199</span></span>
+          <span>LON: <span class="coords-val" id="lonVal">100.571475</span></span>
+        </div>
+      </div>
+
+      <!-- Quick Stats -->
+      <div class="stats-card">
+        <div class="stat-row">
+          <div class="stat-item">
+            <div>
+              <div class="stat-label">ELAPSED TIME</div>
+              <div class="stat-value" id="elapsedVal">0s</div>
+            </div>
+            <div class="stat-icon">⏱️</div>
+          </div>
+          <div class="stat-item">
+            <div>
+              <div class="stat-label">DATA LOSS RATE</div>
+              <div class="stat-value yellow" id="lossVal">0.0%</div>
+            </div>
+            <div class="stat-icon">🔻</div>
+          </div>
+          <div class="stat-item">
+            <div>
+              <div class="stat-label">BACKUP STATUS</div>
+              <div style="margin-top:2px;font-size:9px;padding:3px 8px;border-radius:6px;border:1px solid #00ff8860;color:#00ff88;background:rgba(0,255,136,0.08);">✅ BACKUP OK</div>
+            </div>
+            <div class="stat-icon">💾</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Tilt Angle -->
+    <div class="card" style="grid-column:1;grid-row:2;">
+      <div class="corner-deco tl"></div><div class="corner-deco tr"></div>
+      <div class="corner-deco bl"></div><div class="corner-deco br"></div>
+      <div class="card-header">
+        <div class="card-title"><span class="card-icon">🧭</span> CANSAT TILT ANGLE</div>
+        <div class="card-badge">DEGREES</div>
+      </div>
+      <div class="chart-container">
+        <canvas id="tiltChart"></canvas>
+      </div>
+    </div>
+
+    <!-- 4. Net Acceleration -->
+    <div class="card" style="grid-column:2;grid-row:2;">
+      <div class="corner-deco tl"></div><div class="corner-deco tr"></div>
+      <div class="corner-deco bl"></div><div class="corner-deco br"></div>
+      <div class="card-header">
+        <div class="card-title"><span class="card-icon">⚡</span> NET ACCELERATION</div>
+        <div class="card-badge">m/s²</div>
+      </div>
+      <div class="chart-container">
+        <canvas id="accelChart"></canvas>
+      </div>
+    </div>
+
+    <!-- ATTITUDE VISUALIZER -->
+    <div class="attitude-card">
+      <div class="corner-deco tl"></div><div class="corner-deco tr"></div>
+      <div class="corner-deco bl"></div><div class="corner-deco br"></div>
+      <div class="card-header" style="margin-bottom:10px;">
+        <div class="card-title"><span class="card-icon">🛸</span> ATTITUDE VISUALIZER</div>
+        <div class="card-badge">3D REALTIME</div>
+      </div>
+      <div id="attitudeMount" style="flex:1;min-height:220px;border-radius:10px;overflow:hidden;background:rgba(0,8,16,0.85);border:1px solid rgba(146,225,255,0.10);position:relative;">
+        <canvas id="attitudeCanvas" style="display:none;"></canvas>
+      </div>
+      <div class="rpy-row">
+        <div class="rpy-item roll">
+          <div class="rpy-arc-wrap">
+            <svg id="rollArc" width="36" height="18" viewBox="0 0 36 18">
+              <path d="M2,16 A16,16 0 0,1 34,16" fill="none" stroke="rgba(255,78,106,0.2)" stroke-width="3" stroke-linecap="round"/>
+              <path id="rollArcFill" d="M18,16 A16,16 0 0,1 34,16" fill="none" stroke="#ff4e6a" stroke-width="3" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="rpy-label">ROLL</div>
+          <div class="rpy-value"><span id="rollVal">0.0</span><span class="rpy-unit">°</span></div>
+        </div>
+        <div class="rpy-item pitch">
+          <div class="rpy-arc-wrap">
+            <svg id="pitchArc" width="36" height="18" viewBox="0 0 36 18">
+              <path d="M2,16 A16,16 0 0,1 34,16" fill="none" stroke="rgba(152,251,152,0.2)" stroke-width="3" stroke-linecap="round"/>
+              <path id="pitchArcFill" d="M18,16 A16,16 0 0,1 34,16" fill="none" stroke="#98FB98" stroke-width="3" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="rpy-label">PITCH</div>
+          <div class="rpy-value"><span id="pitchVal">0.0</span><span class="rpy-unit">°</span></div>
+        </div>
+        <div class="rpy-item yaw">
+          <div class="rpy-arc-wrap">
+            <svg id="yawArc" width="36" height="18" viewBox="0 0 36 18">
+              <path d="M2,16 A16,16 0 0,1 34,16" fill="none" stroke="rgba(245,216,0,0.2)" stroke-width="3" stroke-linecap="round"/>
+              <path id="yawArcFill" d="M18,16 A16,16 0 0,1 34,16" fill="none" stroke="#f5d800" stroke-width="3" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="rpy-label">YAW</div>
+          <div class="rpy-value"><span id="yawVal">0.0</span><span class="rpy-unit">°</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom row -->
+    <div class="bottom-strip">
+
+      <!-- LoRa Signal -->
+      <div class="card">
+        <div class="corner-deco tl"></div><div class="corner-deco tr"></div>
+        <div class="corner-deco bl"></div><div class="corner-deco br"></div>
+        <div class="card-header">
+          <div class="card-title"><span class="card-icon">📡</span> LORA SIGNAL STRENGTH</div>
+          <div class="card-badge">dBm</div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <div style="font-family:'Orbitron',monospace;font-size:22px;font-weight:700;color:var(--mint);" id="rssiVal">—107</div>
+          <div style="font-size:10px;color:var(--text-secondary);">dBm</div>
+        </div>
+        <div class="signal-bar-wrap" id="signalBars"></div>
+        <div style="font-size:9px;color:var(--text-dim);margin-top:6px;letter-spacing:1px;">TRANSMISSION RANGE: <span style="color:var(--sky)" id="rangeVal">~4.2 km</span></div>
+      </div>
+
+      <!-- Data Loss -->
+      <div class="card">
+        <div class="corner-deco tl"></div><div class="corner-deco tr"></div>
+        <div class="corner-deco bl"></div><div class="corner-deco br"></div>
+        <div class="card-header">
+          <div class="card-title"><span class="card-icon">🔻</span> DATA LOSS RATE</div>
+          <div class="card-badge">%</div>
+        </div>
+        <div style="font-family:'Orbitron',monospace;font-size:26px;font-weight:700;margin-bottom:4px;" id="lossDisplay">0.0<span style="font-size:14px;color:var(--text-secondary);">%</span></div>
+        <div class="progress-track">
+          <div class="progress-fill" id="lossFill" style="width:2%"></div>
+        </div>
+        <div style="font-size:9px;color:var(--text-dim);letter-spacing:1px;margin-top:4px;">
+          PKT RX: <span style="color:var(--mint)" id="pktRx">248</span> / TX: <span style="color:var(--sky)" id="pktTx">251</span>
+        </div>
+      </div>
+
+      <!-- LoRa Raw Data -->
+      <div class="card">
+        <div class="corner-deco tl"></div><div class="corner-deco tr"></div>
+        <div class="corner-deco bl"></div><div class="corner-deco br"></div>
+        <div class="card-header">
+          <div class="card-title"><span class="card-icon">📟</span> LORA RAW DATA STREAM</div>
+          <div class="card-badge">LIVE</div>
+        </div>
+        <div class="lora-terminal" id="loraTerminal"></div>
+      </div>
+
+      <!-- IMU Status -->
+      <div class="card">
+        <div class="corner-deco tl"></div><div class="corner-deco tr"></div>
+        <div class="corner-deco bl"></div><div class="corner-deco br"></div>
+        <div class="card-header">
+          <div class="card-title"><span class="card-icon">🔬</span> IMU STATUS</div>
+          <div class="card-badge">9-DOF</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 8px;background:rgba(0,245,196,0.05);border:1px solid var(--border2);border-radius:8px;">
+            <span style="font-size:9px;color:var(--text-dim);letter-spacing:1.5px;">GYRO</span>
+            <span style="font-family:'Orbitron',monospace;font-size:10px;color:var(--mint);" id="gyroStatus">NOMINAL</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 8px;background:rgba(0,245,196,0.05);border:1px solid var(--border2);border-radius:8px;">
+            <span style="font-size:9px;color:var(--text-dim);letter-spacing:1.5px;">ACCEL</span>
+            <span style="font-family:'Orbitron',monospace;font-size:10px;color:var(--mint);" id="accelStatus">NOMINAL</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 8px;background:rgba(0,245,196,0.05);border:1px solid var(--border2);border-radius:8px;">
+            <span style="font-size:9px;color:var(--text-dim);letter-spacing:1.5px;">MAG</span>
+            <span style="font-family:'Orbitron',monospace;font-size:10px;color:var(--mint);" id="magStatus">NOMINAL</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 8px;background:rgba(0,245,196,0.05);border:1px solid var(--border2);border-radius:8px;">
+            <span style="font-size:9px;color:var(--text-dim);letter-spacing:1.5px;">FUSION Hz</span>
+            <span style="font-family:'Orbitron',monospace;font-size:10px;color:var(--sky);" id="fusionHz">100 Hz</span>
+          </div>
+          <div style="font-size:8px;color:var(--text-dim);letter-spacing:1px;margin-top:2px;text-align:center;">
+            TEMP: <span style="color:var(--accent-yellow)" id="imuTemp">38.2°C</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div><!-- end dashboard-grid -->
+  </div><!-- end page-ground -->
+
+  <!-- PAGE: CANSAT -->
+  <div id="page-cansat" class="page" style="display:none;">
+
+    <!-- CANSAT TOPBAR -->
+    <div class="topbar topbar-centered">
+      <div class="topbar-side">
+        <div class="live-badge" style="border-color:#a78bfa;color:#a78bfa;">
+          <div class="live-dot" style="background:#a78bfa;box-shadow:0 0 8px #a78bfa;"></div>
+          LIVE
+        </div>
+      </div>
+      <div class="topbar-center">
+        <div class="naga-neon">NAGA</div>
+        <div style="font-size:18px;font-weight:700;letter-spacing:3px;font-family:'Orbitron',monospace;background:linear-gradient(135deg,var(--sky),#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-top:2px;">CANSAT SENSOR DASHBOARD</div>
+        <div style="font-size:10px;color:var(--text-dim);letter-spacing:2px;margin-top:2px;">ONBOARD SENSOR TELEMETRY — CIRCULAR GAUGES VIEW</div>
+      </div>
+      <div class="topbar-side" style="justify-content:flex-end;">
+        <div class="time-display" id="clockDisplay2">00:00:00</div>
+      </div>
+    </div>
+
+    <!-- CANSAT SENSOR WHEEL -->
+    <div class="sensor-wheel-wrap">
+      <canvas id="sensorWheel" width="700" height="700"></canvas>
+    </div>
+
+  </div><!-- end page-cansat -->
+
+</main>
+
+<script src="main.js"></script>
+</body>
+</html>
