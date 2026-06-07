@@ -95,7 +95,7 @@
     font-weight: 900;
     letter-spacing: 3px;
     background: linear-gradient(135deg, var(--mint), var(--sky));
-    -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
   }
 
@@ -180,7 +180,7 @@
     font-size: 22px;
     font-weight: 700;
     background: linear-gradient(135deg, var(--mint), var(--sky));
-    -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
     letter-spacing: 2px;
   }
@@ -553,6 +553,68 @@
     box-shadow: 0 0 12px var(--accent-red);
   }
 
+  /* ===== DATA LOSS RATE — SCROLLABLE CHART ===== */
+  .loss-scroll-outer {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    cursor: grab;
+    /* padding-bottom เพื่อให้ scrollbar ไม่ชิดกราฟเกินไป */
+    padding-bottom: 4px;
+  }
+
+  .loss-scroll-outer:active {
+    cursor: grabbing;
+  }
+
+  /* Scrollbar styling — สีเหลือง/ส้ม neon ตามที่ mark ไว้ */
+  .loss-scroll-outer::-webkit-scrollbar {
+    height: 10px;
+  }
+
+  .loss-scroll-outer::-webkit-scrollbar-track {
+    background: rgba(0, 10, 20, 0.6);
+    border-radius: 5px;
+    border: 1px solid rgba(245,166,35,0.15);
+  }
+
+  .loss-scroll-outer::-webkit-scrollbar-thumb {
+    background: linear-gradient(90deg, #e08000, #f5a623, #ffcc44, #f5a623, #e08000);
+    border-radius: 5px;
+    box-shadow:
+      0 0 6px rgba(245,166,35,0.7),
+      0 0 14px rgba(245,166,35,0.4),
+      inset 0 1px 0 rgba(255,220,100,0.5);
+    border: 1px solid rgba(255,180,40,0.4);
+  }
+
+  .loss-scroll-outer::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(90deg, #f09000, #ffbe45, #ffe066, #ffbe45, #f09000);
+    box-shadow:
+      0 0 10px rgba(255,190,50,0.9),
+      0 0 22px rgba(255,190,50,0.5),
+      inset 0 1px 0 rgba(255,240,140,0.6);
+  }
+
+  /* Firefox scrollbar */
+  .loss-scroll-outer {
+    scrollbar-width: thin;
+    scrollbar-color: #f5a623 rgba(0,10,20,0.6);
+  }
+
+  .loss-scroll-inner {
+    /* min-width กำหนดจาก JS ตามจำนวน data */
+    min-width: 600px;
+    height: 130px;
+    position: relative;
+    display: block;
+  }
+
+  .loss-scroll-inner canvas {
+    display: block;
+    height: 130px !important;
+  }
+
   /* ===== BOTTOM STRIP ===== */
   .bottom-strip {
     grid-column: 1 / -1;
@@ -714,7 +776,6 @@
     letter-spacing: 1px;
   }
 
-  /* Arc indicator per axis */
   .rpy-arc-wrap {
     position: relative;
     width: 36px;
@@ -722,9 +783,8 @@
     margin: 0 auto 3px;
   }
 
-  .rpy-arc-wrap svg {
-    overflow: visible;
-  }
+  .rpy-arc-wrap svg { overflow: visible; }
+
 /* ===== NAV ACTIVE STATE ===== */
 .nav-item.active {
   background: linear-gradient(135deg, rgba(152,251,152,0.30), rgba(146,225,255,0.25));
@@ -792,10 +852,7 @@
   flex-shrink: 0;
 }
 
-.gauge-canvas {
-  width: 180px !important;
-  height: 180px !important;
-}
+.gauge-canvas { width: 180px !important; height: 180px !important; }
 
 .gauge-center {
   position: absolute;
@@ -832,22 +889,6 @@
   letter-spacing: 1.5px;
   text-transform: uppercase;
   margin-top: 10px;
-}
-
-/* ===== SENSOR WHEEL ===== */
-.sensor-wheel-wrap {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 1;
-  padding: 20px 0 40px;
-}
-
-#sensorWheel {
-  width: min(700px, 85vw);
-  height: min(700px, 85vw);
-  max-width: 700px;
-  max-height: 700px;
 }
 
 /* ===== NAGA NEON LED EFFECT ===== */
@@ -955,9 +996,7 @@
 }
 
 /* ===== HOLOGRAM PAGE TRANSITION ===== */
-.page {
-  display: none;
-}
+.page { display: none; }
 
 .page.page-active {
   display: block;
@@ -989,6 +1028,541 @@
   }
 }
 
-#holoTransition {
-  mix-blend-mode: screen;
+#holoTransition { mix-blend-mode: screen; }
+
+/* ===== CANSAT DASHBOARD GRID ===== */
+.cansat-dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  grid-template-rows: auto auto auto;
+  gap: 16px;
+}
+
+/* Gyro card: full width row 1 */
+.cs-gyro-card {
+  grid-column: 1 / -1;
+  grid-row: 1;
+}
+
+/* GPS: row 2 col 1 */
+.cs-gps-card {
+  grid-column: 1;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0 !important;
+}
+
+/* Team: row 2 col 2 */
+.cs-team-card {
+  grid-column: 2;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Power: row 3 col 1 */
+.cs-power-card {
+  grid-column: 1;
+  grid-row: 3;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Accel: row 3 col 2 */
+.cs-accel-card {
+  grid-column: 2;
+  grid-row: 3;
+  display: flex;
+  flex-direction: column;
+}
+
+.cs-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  backdrop-filter: blur(20px);
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.cs-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(167,139,250,0.05) 0%, rgba(146,225,255,0.03) 50%, transparent 100%);
+  pointer-events: none;
+}
+.cs-card:hover {
+  border-color: rgba(167,139,250,0.35);
+  box-shadow: 0 0 28px rgba(167,139,250,0.10);
+}
+
+/* ---- GYRO LAYOUT ---- */
+.gyro-content {
+  display: flex;
+  gap: 20px;
+  align-items: stretch;
+}
+
+.gyro-axes-panel {
+  position: relative;
+  width: 280px;
+  flex-shrink: 0;
+  background: rgba(0,8,18,0.7);
+  border: 1px solid rgba(167,139,250,0.15);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gyro-axes-panel canvas { width: 100%; height: 220px; display: block; }
+
+.gyro-axis-labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.axis-label {
+  position: absolute;
+  font-family: 'Orbitron', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+.x-label { color: #ff4e6a; right: 18px; top: 50%; transform: translateY(-50%); }
+.y-label { color: #98FB98; bottom: 18px; left: 50%; transform: translateX(-50%); }
+.z-label { color: #92E1FF; left: 22px; top: 28px; }
+
+.gyro-meters {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.gyro-meter-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.gyro-meter-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 9px;
+  color: var(--text-dim);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.gyro-horizon-wrap, .gyro-compass-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gyro-horizon-val, .gyro-compass-val {
+  position: absolute;
+  text-align: center;
+  font-family: 'Orbitron', monospace;
+  font-size: 18px;
+  font-weight: 700;
+  color: #a78bfa;
+  pointer-events: none;
+}
+
+.gyro-unit {
+  font-size: 9px;
+  color: var(--text-dim);
+  margin-left: 1px;
+}
+
+.gyro-divider {
+  width: 1px;
+  align-self: stretch;
+  background: rgba(167,139,250,0.15);
+  margin: 8px 0;
+}
+
+/* RPY bar list */
+.gyro-rpy-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gyro-rpy-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 6px;
+}
+
+.gyro-rpy-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.grpy-label {
+  font-family: 'Orbitron', monospace;
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  width: 30px;
+  flex-shrink: 0;
+}
+
+.grpy-bar-wrap {
+  flex: 1;
+  height: 5px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.grpy-bar {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+  width: 0%;
+}
+
+.grpy-val {
+  font-family: 'Orbitron', monospace;
+  font-size: 10px;
+  width: 44px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* ---- GPS COORDS ---- */
+.cs-coords {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 8px;
+  padding: 8px 10px;
+  background: rgba(0,0,0,0.35);
+  border-radius: 8px;
+  border: 1px solid rgba(245,216,0,0.15);
+}
+.cs-coords > div { text-align: center; }
+
+/* ---- TEAM NUMBER ---- */
+.cs-team-number-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  position: relative;
+}
+
+.cs-team-ring {
+  position: absolute;
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  border: 2px solid rgba(146,225,255,0.25);
+  box-shadow: 0 0 40px rgba(146,225,255,0.12), inset 0 0 40px rgba(146,225,255,0.06);
+  animation: teamRingPulse 2.5s ease-in-out infinite;
+}
+
+@keyframes teamRingPulse {
+  0%, 100% { box-shadow: 0 0 30px rgba(146,225,255,0.12), inset 0 0 30px rgba(146,225,255,0.06); border-color: rgba(146,225,255,0.25); }
+  50%       { box-shadow: 0 0 60px rgba(146,225,255,0.25), inset 0 0 50px rgba(146,225,255,0.10); border-color: rgba(146,225,255,0.50); }
+}
+
+.cs-team-number {
+  font-family: 'Orbitron', monospace;
+  font-size: 90px;
+  font-weight: 900;
+  line-height: 1;
+  background: linear-gradient(135deg, var(--mint), var(--sky), #a78bfa);
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 0 24px rgba(146,225,255,0.5));
+  letter-spacing: -4px;
+  z-index: 1;
+}
+
+.cs-team-label {
+  font-family: 'Orbitron', monospace;
+  font-size: 9px;
+  color: var(--text-dim);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  z-index: 1;
+}
+
+/* ---- POWER ---- */
+.cs-power-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  flex: 1;
+  margin-top: 6px;
+}
+
+.cs-power-item {
+  background: rgba(0,8,16,0.6);
+  border: 1px solid rgba(255,140,66,0.15);
+  border-radius: 12px;
+  padding: 14px 12px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  transition: border-color 0.3s;
+}
+.cs-power-item:hover { border-color: rgba(255,140,66,0.35); }
+
+.cs-power-icon { font-size: 20px; margin-bottom: 2px; }
+
+.cs-power-label {
+  font-family: 'Orbitron', monospace;
+  font-size: 8px;
+  color: var(--text-dim);
+  letter-spacing: 2px;
+}
+
+.cs-power-val {
+  font-family: 'Orbitron', monospace;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+  margin: 2px 0;
+}
+
+.cs-power-unit {
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 1.5px;
+  margin-bottom: 6px;
+}
+
+.cs-power-bar-wrap {
+  width: 100%;
+  height: 4px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: auto;
+}
+
+.cs-power-bar {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.6s ease;
+  box-shadow: 0 0 8px currentColor;
+}
+
+/* ---- ACCEL ---- */
+.cs-accel-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.cs-accel-gauge-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cs-accel-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.cs-accel-val {
+  font-family: 'Orbitron', monospace;
+  font-size: 22px;
+  font-weight: 700;
+  color: #56d8f5;
+  text-shadow: 0 0 16px #56d8f588;
+}
+
+.cs-accel-unit {
+  font-size: 9px;
+  color: var(--text-dim);
+  letter-spacing: 1.5px;
+  margin-top: 2px;
+}
+
+.cs-accel-xyz {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+}
+
+.cs-accel-axis {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: rgba(0,8,16,0.6);
+  border: 1px solid rgba(86,216,245,0.15);
+  border-radius: 8px;
+  padding: 5px 10px;
+  min-width: 52px;
+}
+
+/* ===== NEW GYRO BAR SECTION ===== */
+.gyro-bars-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  border-top: 1px solid rgba(167,139,250,0.12);
+}
+
+.gyro-bar-col {
+  padding: 12px 18px 10px;
+  border-right: 1px solid rgba(167,139,250,0.10);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.gyro-bar-col:last-child { border-right: none; }
+
+.gyro-bar-label {
+  font-family: 'Orbitron', monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.gyro-hbar-wrap {
+  height: 6px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 3px;
+  overflow: hidden;
+  margin: 2px 0;
+}
+
+.gyro-hbar-fill {
+  height: 100%;
+  border-radius: 3px;
+  width: 0%;
+  transition: width 0.4s ease;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.gyro-bar-val {
+  font-family: 'Orbitron', monospace;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.gyro-bar-sub {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+/* ===== GPS PING ANIMATION ===== */
+@keyframes pingAnim {
+  0%   { transform: scale(0.6); opacity: 0.9; }
+  70%  { transform: scale(2.4); opacity: 0.15; }
+  100% { transform: scale(3.0); opacity: 0; }
+}
+
+/* ===== TEAM NUMBER — SIGNAL STATE ===== */
+
+.cs-team-number.signal-on {
+  opacity: 1;
+  filter:
+    drop-shadow(0 0 8px rgba(152,251,152,0.9))
+    drop-shadow(0 0 24px rgba(146,225,255,0.7))
+    drop-shadow(0 0 48px rgba(167,139,250,0.4));
+  transition: opacity 0.35s ease, filter 0.35s ease;
+  animation: teamSignalPulse 1.8s ease-in-out infinite;
+}
+
+.cs-team-number.signal-off {
+  opacity: 0.15;
+  filter: drop-shadow(0 0 2px rgba(146,225,255,0.1));
+  transition: opacity 0.7s ease, filter 0.7s ease;
+  animation: none;
+}
+
+.cs-team-ring.signal-on {
+  animation: teamRingPulse 2.5s ease-in-out infinite, teamRingSignal 1.8s ease-in-out infinite;
+  border-color: rgba(152,251,152,0.55);
+}
+
+.cs-team-ring.signal-off {
+  animation: none;
+  border-color: rgba(146,225,255,0.08);
+  box-shadow: none;
+  transition: border-color 0.7s ease, box-shadow 0.7s ease;
+}
+
+.cs-signal-badge {
+  font-family: 'Orbitron', monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  padding: 3px 10px;
+  border-radius: 8px;
+  z-index: 2;
+  transition: all 0.4s ease;
+}
+
+.cs-signal-badge.signal-on {
+  color: #98FB98;
+  background: rgba(152,251,152,0.12);
+  border: 1px solid rgba(152,251,152,0.35);
+}
+
+.cs-signal-badge.signal-off {
+  color: #ff4e6a;
+  background: rgba(255,78,106,0.10);
+  border: 1px solid rgba(255,78,106,0.30);
+}
+
+@keyframes teamSignalPulse {
+  0%, 100% {
+    filter:
+      drop-shadow(0 0 8px rgba(152,251,152,0.9))
+      drop-shadow(0 0 24px rgba(146,225,255,0.7))
+      drop-shadow(0 0 48px rgba(167,139,250,0.4));
+  }
+  50% {
+    filter:
+      drop-shadow(0 0 14px rgba(152,251,152,1.0))
+      drop-shadow(0 0 36px rgba(146,225,255,0.9))
+      drop-shadow(0 0 64px rgba(167,139,250,0.6));
+  }
+}
+
+@keyframes teamRingSignal {
+  0%, 100% {
+    box-shadow: 0 0 30px rgba(152,251,152,0.20), inset 0 0 30px rgba(152,251,152,0.08);
+  }
+  50% {
+    box-shadow: 0 0 70px rgba(152,251,152,0.45), inset 0 0 50px rgba(152,251,152,0.18);
+  }
 }
