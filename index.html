@@ -8,6 +8,11 @@
 <link rel="stylesheet" href="style.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<!-- Leaflet Map (ฟรี ไม่ต้อง API Key) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
 
@@ -89,64 +94,8 @@
           <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--sky);letter-spacing:1px;font-weight:400;" id="mapCoordTitle">13.5752, 100.5715</span>
         </div>
 
-        <div id="gmap" style="position:relative;border-radius:10px;overflow:hidden;flex:1;min-height:200px;">
-          <iframe
-            id="groundGoogleMap"
-            width="100%"
-            height="100%"
-            style="border:0;display:block;min-height:200px;
-                   filter:invert(90%) hue-rotate(180deg) saturate(1.4) brightness(0.85);"
-            loading="lazy"
-            allowfullscreen
-            referrerpolicy="no-referrer-when-downgrade"
-            src="about:blank">
-          </iframe>
-
-          <div style="position:absolute;inset:0;pointer-events:none;
-                      display:flex;align-items:center;justify-content:center;">
-            <div style="position:relative;width:20px;height:20px;">
-              <div style="position:absolute;inset:-8px;border-radius:50%;
-                          border:1.5px solid rgba(152,251,152,0.6);
-                          animation:pingAnim 1.8s ease-out infinite;"></div>
-              <div style="position:absolute;inset:6px;border-radius:50%;
-                          background:#98FB98;
-                          box-shadow:0 0 10px #98FB98,0 0 20px rgba(152,251,152,0.5);"></div>
-              <div style="position:absolute;top:50%;left:-14px;right:-14px;height:1px;
-                          background:rgba(152,251,152,0.7);transform:translateY(-50%);"></div>
-              <div style="position:absolute;left:50%;top:-14px;bottom:-14px;width:1px;
-                          background:rgba(152,251,152,0.7);transform:translateX(-50%);"></div>
-            </div>
-          </div>
-
-          <div id="groundMapKeyOverlay"
-               style="position:absolute;inset:0;background:rgba(3,14,26,0.93);
-                      display:flex;flex-direction:column;align-items:center;
-                      justify-content:center;gap:12px;border-radius:10px;z-index:10;">
-            <div style="font-size:22px;">🗺️</div>
-            <div style="font-family:'Orbitron',monospace;font-size:11px;
-                        color:var(--mint);letter-spacing:2px;text-align:center;">
-              GOOGLE MAPS API KEY
-            </div>
-            <input id="groundMapKeyInput" type="text" placeholder="AIzaSy..."
-                   style="background:rgba(0,245,196,0.08);
-                          border:1px solid var(--border2);
-                          border-radius:8px;color:var(--text-primary);
-                          font-family:'DM Mono',monospace;font-size:11px;
-                          padding:7px 12px;width:230px;outline:none;
-                          letter-spacing:1px;"
-                   onkeydown="if(event.key==='Enter') applyGroundMapKey()" />
-            <button onclick="applyGroundMapKey()"
-                    style="background:linear-gradient(135deg,rgba(152,251,152,0.18),rgba(146,225,255,0.13));
-                           border:1px solid var(--mint);border-radius:8px;
-                           color:var(--mint);font-family:'Orbitron',monospace;
-                           font-size:10px;letter-spacing:2px;
-                           padding:7px 20px;cursor:pointer;
-                           transition:box-shadow 0.2s;"
-                    onmouseover="this.style.boxShadow='0 0 18px rgba(152,251,152,0.35)'"
-                    onmouseout="this.style.boxShadow='none'">
-              CONNECT
-            </button>
-          </div>
+        <div id="gmap">
+          <div id="groundLeafletMap"></div>
         </div>
 
         <div class="coords-display">
@@ -204,7 +153,7 @@
       <div class="corner-deco tl"></div><div class="corner-deco tr"></div>
       <div class="corner-deco bl"></div><div class="corner-deco br"></div>
       <div class="card-header" style="margin-bottom:10px;">
-        <div class="card-title"><span class="card-icon">🛸</span> ATTITUDE VISUALIZER</div>
+        <div class="card-title"><span class="card-icon">🛸</span> GYROSCOPE — ROCKET</div>
         <div class="card-badge">3D REALTIME</div>
       </div>
       <div id="attitudeMount" style="flex:1;min-height:220px;border-radius:10px;overflow:hidden;background:rgba(0,8,16,0.85);border:1px solid rgba(146,225,255,0.10);position:relative;">
@@ -384,7 +333,7 @@
         <div class="corner-deco bl"></div><div class="corner-deco br"></div>
 
         <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px 8px;border-bottom:1px solid rgba(167,139,250,0.12);">
-          <div class="card-title" style="color:#a78bfa;"><span class="card-icon">🧭</span> GYROSCOPE — ORIENTATION</div>
+          <div class="card-title" style="color:#a78bfa;"><span class="card-icon">🧭</span> GYROSCOPE — CANSAT</div>
           <div class="card-badge" style="border-color:#a78bfa55;color:#a78bfa;">GY-91</div>
         </div>
 
@@ -457,28 +406,10 @@
           </div>
         </div>
 
-        <div id="csGmap" style="position:relative;width:100%;flex:1;min-height:320px;">
-          <iframe
-            id="csGoogleMap"
-            width="100%"
-            height="100%"
-            style="border:0;display:block;min-height:320px;filter:invert(90%) hue-rotate(180deg) saturate(1.4) brightness(0.85);"
-            loading="lazy"
-            allowfullscreen
-            referrerpolicy="no-referrer-when-downgrade"
-            src="about:blank">
-          </iframe>
+        <div id="csGmap" style="position:relative;width:100%;flex:1;min-height:280px;">
+          <div id="csLeafletMap" style="position:absolute;inset:0;width:100%;height:100%;"></div>
 
-          <div style="position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center;">
-            <div style="position:relative;width:20px;height:20px;">
-              <div style="position:absolute;inset:-8px;border-radius:50%;border:1.5px solid rgba(245,216,0,0.6);animation:pingAnim 1.8s ease-out infinite;"></div>
-              <div style="position:absolute;inset:6px;border-radius:50%;background:#f5d800;box-shadow:0 0 10px #f5d800,0 0 20px rgba(245,216,0,0.5);"></div>
-              <div style="position:absolute;top:50%;left:-14px;right:-14px;height:1px;background:rgba(245,216,0,0.7);transform:translateY(-50%);"></div>
-              <div style="position:absolute;left:50%;top:-14px;bottom:-14px;width:1px;background:rgba(245,216,0,0.7);transform:translateX(-50%);"></div>
-            </div>
-          </div>
-
-          <div style="position:absolute;bottom:10px;left:10px;pointer-events:none;background:rgba(2,8,16,0.78);border:1px solid rgba(245,216,0,0.35);border-radius:6px;padding:4px 12px;backdrop-filter:blur(8px);">
+          <div style="position:absolute;bottom:10px;left:10px;pointer-events:none;background:rgba(2,8,16,0.78);border:1px solid rgba(245,216,0,0.35);border-radius:6px;padding:4px 12px;backdrop-filter:blur(8px);z-index:1000;">
             <span style="font-family:'DM Mono',monospace;font-size:9px;color:rgba(245,216,0,0.85);letter-spacing:1px;">
               <span id="csLatOverlay">13.575191</span>, <span id="csLonOverlay">100.571472</span>
             </span>
