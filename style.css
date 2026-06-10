@@ -67,7 +67,7 @@
     align-items: center;
     padding: 20px 0;
     z-index: 100;
-    backdrop-filter: blur(20px);
+    backdrop-filter: blur(6px);
   }
 
   .logo-wrap {
@@ -241,7 +241,7 @@
     border: 1px solid var(--border);
     border-radius: 16px;
     padding: 16px;
-    backdrop-filter: blur(20px);
+    backdrop-filter: blur(6px);
     position: relative;
     overflow: hidden;
     transition: border-color 0.3s;
@@ -368,7 +368,7 @@
     border: 1px solid var(--border);
     border-radius: 16px;
     padding: 16px;
-    backdrop-filter: blur(20px);
+    backdrop-filter: blur(6px);
     position: relative;
     overflow: hidden;
   }
@@ -437,7 +437,7 @@
     border: 1px solid var(--border);
     border-radius: 16px;
     padding: 16px;
-    backdrop-filter: blur(20px);
+    backdrop-filter: blur(6px);
     position: relative;
     overflow: hidden;
   }
@@ -662,13 +662,10 @@
   /* Map placeholder */
   #gmap {
     width: 100%;
-    height: 200px;
+    flex: 1;
+    min-height: 180px;
     border-radius: 10px;
     background: rgba(5,28,50,0.95);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
     position: relative;
     overflow: hidden;
   }
@@ -690,7 +687,7 @@
     border: 1px solid var(--border);
     border-radius: 16px;
     padding: 16px;
-    backdrop-filter: blur(20px);
+    backdrop-filter: blur(6px);
     position: relative;
     overflow: hidden;
     display: flex;
@@ -811,7 +808,7 @@
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 20px 16px 16px;
-  backdrop-filter: blur(20px);
+  backdrop-filter: blur(6px);
   position: relative;
   overflow: hidden;
   display: flex;
@@ -895,14 +892,9 @@
 @keyframes nagaFlicker {
   0%,  19%,  21%,  23%,  25%,  54%,  56%,  100% {
     text-shadow:
-      0 0 4px #00ff88,
-      0 0 10px #00ff88,
-      0 0 22px #00ff88,
-      0 0 42px #00cc66,
-      0 0 82px #00cc66,
-      0 0 92px #00cc66,
-      0 0 120px #00aa55,
-      0 0 160px #00aa55;
+      0 0 8px #00ff88,
+      0 0 28px #00cc66,
+      0 0 60px #00aa55;
     color: #afffcf;
   }
   20%,  24%,  55% {
@@ -914,21 +906,15 @@
 @keyframes nagaPulse {
   0%, 100% {
     text-shadow:
-      0 0 4px #00ff88,
-      0 0 14px #00ff88,
-      0 0 28px #00ee77,
-      0 0 52px #00cc66,
-      0 0 90px #00aa55,
-      0 0 120px #008844;
+      0 0 8px #00ff88,
+      0 0 28px #00cc66,
+      0 0 60px #00aa55;
     color: #b8ffe0;
   }
   50% {
     text-shadow:
-      0 0 2px #00ff88,
-      0 0 8px #00ff88,
-      0 0 18px #00ee77,
-      0 0 36px #00cc66,
-      0 0 60px #00aa55;
+      0 0 4px #00ff88,
+      0 0 18px #00cc66;
     color: #d4fff0;
   }
 }
@@ -1085,7 +1071,7 @@
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 16px;
-  backdrop-filter: blur(20px);
+  backdrop-filter: blur(6px);
   position: relative;
   overflow: hidden;
   transition: border-color 0.3s, box-shadow 0.3s;
@@ -1565,4 +1551,16 @@
   50% {
     box-shadow: 0 0 70px rgba(152,251,152,0.45), inset 0 0 50px rgba(152,251,152,0.18);
   }
+}
+/* ===== LEAFLET MAP THEME ===== */
+#groundLeafletMap,
+#csLeafletMap {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+}
+.leaflet-container {
+  font-family: 'DM Mono', monospace;
 }
