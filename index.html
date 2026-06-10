@@ -7,7 +7,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=DM+Mono:wght@300;400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <!-- Leaflet Map (ฟรี ไม่ต้อง API Key) -->
@@ -24,8 +23,7 @@
     <div class="logo-icon">🚀</div>
     <div class="logo-text">NAGA</div>
   </div>
-  <div class="nav-item active" title="Ground Station" onclick="showPage('ground')">🚀</div>
-  <div class="nav-item" title="CanSat" onclick="showPage('cansat')">🥫</div>
+  <div class="nav-item active" title="CanSat" onclick="showPage('cansat')">🥫</div>
   <div class="sidebar-bottom">
     <div class="status-dot"></div>
   </div>
@@ -34,278 +32,10 @@
 <!-- MAIN -->
 <main class="main">
 
-  <!-- PAGE: GROUND STATION -->
-  <div id="page-ground" class="page">
 
-  <!-- TOPBAR -->
-  <div class="topbar topbar-centered">
-    <div class="topbar-side">
-      <div class="live-badge">
-        <div class="live-dot"></div>
-        LIVE
-      </div>
-    </div>
-    <div class="topbar-center">
-      <div class="naga-neon">NAGA</div>
-      <div style="font-size:18px;font-weight:700;letter-spacing:3px;font-family:'Orbitron',monospace;color:var(--text-secondary);margin-top:2px;">GROUND STATION</div>
-    </div>
-    <div class="topbar-side" style="justify-content:flex-end;">
-      <div class="time-display" id="clockDisplay">00:00:00</div>
-    </div>
-  </div>
-
-  <!-- DASHBOARD GRID -->
-  <div class="dashboard-grid">
-
-    <!-- 1. Altitude Kalman -->
-    <div class="card">
-      <div class="corner-deco tl"></div><div class="corner-deco tr"></div>
-      <div class="corner-deco bl"></div><div class="corner-deco br"></div>
-      <div class="card-header">
-        <div class="card-title"><span class="card-icon">📈</span> ALTITUDE — KALMAN FILTER</div>
-        <div class="card-badge">FILTERED</div>
-      </div>
-      <div class="chart-container">
-        <canvas id="altKalmanChart"></canvas>
-      </div>
-    </div>
-
-    <!-- 2. Raw Altitude -->
-    <div class="card">
-      <div class="corner-deco tl"></div><div class="corner-deco tr"></div>
-      <div class="corner-deco bl"></div><div class="corner-deco br"></div>
-      <div class="card-header">
-        <div class="card-title"><span class="card-icon">📉</span> RAW ALTITUDE — SENSOR</div>
-        <div class="card-badge">RAW</div>
-      </div>
-      <div class="chart-container">
-        <canvas id="altRawChart"></canvas>
-      </div>
-    </div>
-
-    <!-- MAP + STATS right column -->
-    <div class="map-section">
-      <!-- Map -->
-      <div class="map-card" style="display:flex;flex-direction:column;padding:12px;">
-        <div class="corner-deco tl"></div><div class="corner-deco tr"></div>
-        <div class="corner-deco bl"></div><div class="corner-deco br"></div>
-        <div class="map-title">
-          <span>📍 LIVE POSITION</span>
-          <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--sky);letter-spacing:1px;font-weight:400;" id="mapCoordTitle">13.5752, 100.5715</span>
-        </div>
-
-        <div id="gmap">
-          <div id="groundLeafletMap"></div>
-        </div>
-
-        <div class="coords-display">
-          <span>LAT: <span class="coords-val" id="latVal">13.575199</span></span>
-          <span>LON: <span class="coords-val" id="lonVal">100.571475</span></span>
-        </div>
-      </div>
-
-      <!-- Quick Stats -->
-      <div class="stats-card">
-        <div class="stat-row">
-          <div class="stat-item">
-            <div>
-              <div class="stat-label">ELAPSED TIME</div>
-              <div class="stat-value" id="elapsedVal">0s</div>
-            </div>
-            <div class="stat-icon">⏱️</div>
-          </div>
-          <div class="stat-item">
-            <div>
-              <div class="stat-label">DATA LOSS RATE</div>
-              <div class="stat-value yellow" id="lossVal">0.0%</div>
-            </div>
-            <div class="stat-icon">🔻</div>
-          </div>
-          <div class="stat-item">
-            <div>
-              <div class="stat-label">BACKUP STATUS</div>
-              <div style="margin-top:2px;font-size:9px;padding:3px 8px;border-radius:6px;border:1px solid #00ff8860;color:#00ff88;background:rgba(0,255,136,0.08);">✅ BACKUP OK</div>
-            </div>
-            <div class="stat-icon">💾</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 3. DATA LOSS RATE — Scrollable Scatter Chart -->
-    <div class="card" style="grid-column:1 / 3;grid-row:2;">
-      <div class="corner-deco tl"></div><div class="corner-deco tr"></div>
-      <div class="corner-deco bl"></div><div class="corner-deco br"></div>
-      <div class="card-header">
-        <div class="card-title"><span class="card-icon">🔻</span> DATA LOSS RATE</div>
-        <div class="card-badge">PERCENT</div>
-      </div>
-      <!-- Scrollable wrapper -->
-      <div class="loss-scroll-outer" id="lossScrollOuter">
-        <div class="loss-scroll-inner" id="lossScrollInner">
-          <canvas id="dataLossLinearChart"></canvas>
-        </div>
-      </div>
-    </div>
-
-    <!-- ATTITUDE VISUALIZER -->
-    <div class="attitude-card">
-      <div class="corner-deco tl"></div><div class="corner-deco tr"></div>
-      <div class="corner-deco bl"></div><div class="corner-deco br"></div>
-      <div class="card-header" style="margin-bottom:10px;">
-        <div class="card-title"><span class="card-icon">🛸</span> GYROSCOPE — ROCKET</div>
-        <div class="card-badge">3D REALTIME</div>
-      </div>
-      <div id="attitudeMount" style="flex:1;min-height:220px;border-radius:10px;overflow:hidden;background:rgba(0,8,16,0.85);border:1px solid rgba(146,225,255,0.10);position:relative;">
-        <canvas id="attitudeCanvas" style="display:none;"></canvas>
-      </div>
-      <div class="rpy-row">
-        <div class="rpy-item roll">
-          <div class="rpy-arc-wrap">
-            <svg id="rollArc" width="36" height="18" viewBox="0 0 36 18">
-              <path d="M2,16 A16,16 0 0,1 34,16" fill="none" stroke="rgba(255,78,106,0.2)" stroke-width="3" stroke-linecap="round"/>
-              <path id="rollArcFill" d="M18,16 A16,16 0 0,1 34,16" fill="none" stroke="#ff4e6a" stroke-width="3" stroke-linecap="round"/>
-            </svg>
-          </div>
-          <div class="rpy-label">ROLL</div>
-          <div class="rpy-value"><span id="rollVal">0.0</span><span class="rpy-unit">°</span></div>
-        </div>
-        <div class="rpy-item pitch">
-          <div class="rpy-arc-wrap">
-            <svg id="pitchArc" width="36" height="18" viewBox="0 0 36 18">
-              <path d="M2,16 A16,16 0 0,1 34,16" fill="none" stroke="rgba(152,251,152,0.2)" stroke-width="3" stroke-linecap="round"/>
-              <path id="pitchArcFill" d="M18,16 A16,16 0 0,1 34,16" fill="none" stroke="#98FB98" stroke-width="3" stroke-linecap="round"/>
-            </svg>
-          </div>
-          <div class="rpy-label">PITCH</div>
-          <div class="rpy-value"><span id="pitchVal">0.0</span><span class="rpy-unit">°</span></div>
-        </div>
-        <div class="rpy-item yaw">
-          <div class="rpy-arc-wrap">
-            <svg id="yawArc" width="36" height="18" viewBox="0 0 36 18">
-              <path d="M2,16 A16,16 0 0,1 34,16" fill="none" stroke="rgba(245,216,0,0.2)" stroke-width="3" stroke-linecap="round"/>
-              <path id="yawArcFill" d="M18,16 A16,16 0 0,1 34,16" fill="none" stroke="#f5d800" stroke-width="3" stroke-linecap="round"/>
-            </svg>
-          </div>
-          <div class="rpy-label">YAW</div>
-          <div class="rpy-value"><span id="yawVal">0.0</span><span class="rpy-unit">°</span></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Bottom row -->
-    <div class="bottom-strip" style="align-items:stretch;grid-auto-rows:220px;">
-
-      <!-- LoRa Signal -->
-      <div class="card" style="display:flex;flex-direction:column;">
-        <div class="corner-deco tl"></div><div class="corner-deco tr"></div>
-        <div class="corner-deco bl"></div><div class="corner-deco br"></div>
-        <div class="card-header" style="flex-shrink:0;">
-          <div class="card-title"><span class="card-icon">📡</span> LORA SIGNAL STRENGTH</div>
-          <div class="card-badge">dBm</div>
-        </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-shrink:0;">
-          <div style="font-family:'Orbitron',monospace;font-size:22px;font-weight:700;color:var(--mint);" id="rssiVal">—107</div>
-          <div style="font-size:10px;color:var(--text-secondary);">dBm</div>
-        </div>
-        <div class="signal-bar-wrap" id="signalBars" style="flex-shrink:0;"></div>
-        <div style="font-size:9px;color:var(--text-dim);margin-top:6px;letter-spacing:1px;flex-shrink:0;">TRANSMISSION RANGE: <span style="color:var(--sky)" id="rangeVal">~4.2 km</span></div>
-      </div>
-
-      <!-- ROCKET SPEED -->
-      <div class="card" id="rocketSpeedCard" style="display:flex;flex-direction:column;">
-        <div class="corner-deco tl"></div><div class="corner-deco tr"></div>
-        <div class="corner-deco bl"></div><div class="corner-deco br"></div>
-        <div class="card-header" style="flex-shrink:0;">
-          <div class="card-title"><span class="card-icon">🚀</span> ROCKET SPEED</div>
-          <div class="card-badge">m/s</div>
-        </div>
-        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;">
-          <div style="display:flex;align-items:baseline;gap:6px;">
-            <div id="rocketSpeedVal"
-                 style="font-family:'Orbitron',monospace;font-size:48px;font-weight:900;
-                        color:var(--mint);letter-spacing:2px;line-height:1;
-                        text-shadow:0 0 24px rgba(152,251,152,0.6),0 0 48px rgba(152,251,152,0.25);">
-              000.0
-            </div>
-            <div style="font-family:'DM Mono',monospace;font-size:14px;color:var(--text-dim);letter-spacing:2px;padding-bottom:4px;">m/s</div>
-          </div>
-          <div id="rocketSpeedKmh"
-               style="font-family:'Orbitron',monospace;font-size:14px;font-weight:600;
-                      color:var(--sky);letter-spacing:2px;opacity:0.7;">
-            0.0 km/h
-          </div>
-          <div style="width:100%;margin-top:4px;">
-            <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
-              <span style="font-size:8px;color:var(--text-dim);letter-spacing:1px;">0</span>
-              <span style="font-size:8px;color:var(--text-dim);letter-spacing:1px;font-family:'Orbitron',monospace;">MAX: <span id="rocketMaxVal">0.0</span></span>
-              <span style="font-size:8px;color:var(--text-dim);letter-spacing:1px;">500</span>
-            </div>
-            <div style="height:5px;background:rgba(0,245,196,0.08);border-radius:3px;overflow:hidden;border:1px solid rgba(0,245,196,0.12);">
-              <div id="rocketSpeedBar"
-                   style="height:100%;width:0%;border-radius:3px;
-                          background:linear-gradient(90deg,#98FB98,#92E1FF);
-                          box-shadow:0 0 8px rgba(152,251,152,0.5);
-                          transition:width 0.3s ease;"></div>
-            </div>
-          </div>
-          <div id="rocketStatusLabel"
-               style="font-family:'Orbitron',monospace;font-size:9px;letter-spacing:2px;
-                      color:var(--text-dim);margin-top:2px;">
-            STANDBY
-          </div>
-        </div>
-      </div>
-
-      <!-- LoRa Raw Data -->
-      <div class="card" style="display:flex;flex-direction:column;overflow:hidden;">
-        <div class="corner-deco tl"></div><div class="corner-deco tr"></div>
-        <div class="corner-deco bl"></div><div class="corner-deco br"></div>
-        <div class="card-header" style="flex-shrink:0;">
-          <div class="card-title"><span class="card-icon">📟</span> LORA RAW DATA STREAM</div>
-          <div class="card-badge">LIVE</div>
-        </div>
-        <div class="lora-terminal" id="loraTerminal" style="flex:1;min-height:0;height:0;overflow-y:auto;"></div>
-      </div>
-
-      <!-- IMU Status -->
-      <div class="card" style="display:flex;flex-direction:column;">
-        <div class="corner-deco tl"></div><div class="corner-deco tr"></div>
-        <div class="corner-deco bl"></div><div class="corner-deco br"></div>
-        <div class="card-header" style="flex-shrink:0;">
-          <div class="card-title"><span class="card-icon">🔬</span> IMU STATUS</div>
-          <div class="card-badge">STATUS</div>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:8px;flex:1;justify-content:space-between;">
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 8px;background:rgba(0,245,196,0.05);border:1px solid var(--border2);border-radius:8px;">
-            <span style="font-size:9px;color:var(--text-dim);letter-spacing:1.5px;">GYRO</span>
-            <span style="font-family:'Orbitron',monospace;font-size:10px;color:var(--mint);" id="gyroStatus">NOMINAL</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 8px;background:rgba(0,245,196,0.05);border:1px solid var(--border2);border-radius:8px;">
-            <span style="font-size:9px;color:var(--text-dim);letter-spacing:1.5px;">ACCEL</span>
-            <span style="font-family:'Orbitron',monospace;font-size:10px;color:var(--mint);" id="accelStatus">NOMINAL</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 8px;background:rgba(0,245,196,0.05);border:1px solid var(--border2);border-radius:8px;">
-            <span style="font-size:9px;color:var(--text-dim);letter-spacing:1.5px;">MAG</span>
-            <span style="font-family:'Orbitron',monospace;font-size:10px;color:var(--mint);" id="magStatus">NOMINAL</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 8px;background:rgba(0,245,196,0.05);border:1px solid var(--border2);border-radius:8px;">
-            <span style="font-size:9px;color:var(--text-dim);letter-spacing:1.5px;">FUSION Hz</span>
-            <span style="font-family:'Orbitron',monospace;font-size:10px;color:var(--sky);" id="fusionHz">100 Hz</span>
-          </div>
-          <div style="font-size:8px;color:var(--text-dim);letter-spacing:1px;margin-top:2px;text-align:center;">
-            TEMP: <span style="color:var(--accent-yellow)" id="imuTemp">38.2°C</span>
-          </div>
-        </div>
-      </div>
-
-    </div>
-
-  </div><!-- end dashboard-grid -->
-  </div><!-- end page-ground -->
 
   <!-- PAGE: CANSAT -->
-  <div id="page-cansat" class="page" style="display:none;">
+  <div id="page-cansat" class="page page-active">
 
     <!-- CANSAT TOPBAR -->
     <div class="topbar topbar-centered">
@@ -333,7 +63,7 @@
         <div class="corner-deco bl"></div><div class="corner-deco br"></div>
 
         <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px 8px;border-bottom:1px solid rgba(167,139,250,0.12);">
-          <div class="card-title" style="color:#a78bfa;"><span class="card-icon">🧭</span> GYROSCOPE — CANSAT</div>
+          <div class="card-title" style="color:#a78bfa;"><span class="card-icon">🧭</span> GYROSCOPE — ORIENTATION</div>
           <div class="card-badge" style="border-color:#a78bfa55;color:#a78bfa;">GY-91</div>
         </div>
 
