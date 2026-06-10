@@ -1,6 +1,189 @@
 // ===== MAIN TELEMETRY LOGIC =====
 
 // ---- Custom crosshair + tooltip ----
+// =====================================================
+// NAGA — Firebase Realtime Listener
+// วางโค้ดนี้ใน main.js หรือ index.html ก่อน </body>
+// =====================================================
+// ต้องเพิ่ม script tag นี้ใน index.html ก่อน main.js:
+//
+//  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+//  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+//
+// =====================================================
+
+// ---- Firebase Config (แก้ค่าตาม project ของคุณ) ----
+const firebaseConfig = {
+  apiKey: "AIzaSyCjgCb7eJEIbzrTaej2IrihPT2IXBNXknU",
+  authDomain: "naga-cansat-26472.firebaseapp.com",
+  databaseURL: "https://naga-cansat-26472-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "naga-cansat-26472",
+  storageBucket: "naga-cansat-26472.firebasestorage.app",
+  messagingSenderId: "460079322130",
+  appId: "1:460079322130:web:a65f5e98ccf5bb77caf4cb",
+  measurementId: "G-14LDHLFKWG"
+};
+
+// ---- Init Firebase ----
+const firebaseApp = firebase.initializeApp(firebaseConfig);
+const database    = firebase.database();
+
+// ---- Listen to /naga/latest (realtime) ----
+database.ref("/naga/latest").on("value", (snapshot) => {
+  const data = snapshot.val();
+  if (!data) return;
+
+  console.log("[Firebase] New data:", data);
+
+  const {
+    lat, lon,
+    alt, alt_raw,
+    rssi, gps_valid, sats,
+    roll, pitch, yaw,
+    gx, gy, gz,
+    ax, ay, az,
+    voltage, ampere, ohm,
+    speed, loss,
+    timestamp
+  } = data;
+
+  // ---- แผนที่ + พิกัด ----
+  if (gps_valid && lat && lon) {
+    if (window._groundMapRefresh) window._groundMapRefresh(lat, lon);
+    if (window._csMapRefresh)    window._csMapRefresh(lat, lon);
+
+    const safe = (id, val, dec=6) => { const el = document.getElementById(id); if(el) el.textContent = typeof val==='number' ? val.toFixed(dec) : val; };
+    safe("latVal",        lat);
+    safe("lonVal",        lon);
+    safe("csLatVal",      lat);
+    safe("csLonVal",      lon);
+    safe("csLatOverlay",  lat);
+    safe("csLonOverlay",  lon);
+    const titleEl = document.getElementById("mapCoordTitle");
+    if (titleEl) titleEl.textContent = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+  }
+
+  // ---- RSSI + Signal Bars ----
+  if (rssi !== undefined) {
+    const rssiEl = document.getElementById("rssiVal");
+    if (rssiEl) rssiEl.textContent = rssi;
+    if (typeof buildBars === "function") buildBars(rssi);
+  }
+
+  // ---- Altitude charts ----
+  if (alt !== undefined && !isNaN(alt)) {
+    altKData.push({ x: altKData.length, y: alt });
+    altKChart.data.datasets[0].data = altKData;
+    altKChart.data.datasets[1].data = getAltKRegression(altKData);
+    altKChart.update("none");
+
+    const raw = (alt_raw !== undefined && !isNaN(alt_raw)) ? alt_raw : alt + (Math.random()-0.5)*2;
+    altRData.push(raw);
+    altRData.shift();
+    altRChart.data.datasets[0].data = [...altRData];
+    altRChart.update("none");
+
+    // Rocket speed (คำนวณจาก altitude)
+    if (window.updateRocketSpeed) window.updateRocketSpeed(alt);
+  }
+
+  // ---- Roll / Pitch / Yaw ----
+  if (roll  !== undefined) { const el = document.getElementById("rollVal");  if(el) el.textContent  = parseFloat(roll).toFixed(1); }
+  if (pitch !== undefined) { const el = document.getElementById("pitchVal"); if(el) el.textContent  = parseFloat(pitch).toFixed(1); }
+  if (yaw   !== undefined) { const el = document.getElementById("yawVal");   if(el) el.textContent  = parseFloat(yaw).toFixed(1); }
+
+  // ---- Gyro bars (CanSat page) ----
+  if (roll !== undefined && pitch !== undefined && yaw !== undefined) {
+    const r = parseFloat(roll), p = parseFloat(pitch), y = parseFloat(yaw);
+    const tilt = Math.sqrt(r**2 + p**2);
+
+    const safe = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
+    safe("gyroRollDisp",  r.toFixed(1));
+    safe("gyroPitchDisp", p.toFixed(1));
+    safe("gyroYawDisp",   y.toFixed(1));
+    safe("gyroTiltVal",   tilt.toFixed(1));
+    safe("gyroSpinVal",   Math.abs(y).toFixed(1));
+
+    const pct = id => Math.min(100, (parseFloat(document.getElementById(id)?.textContent||0)/180)*100)+'%';
+    const setW = (id, w) => { const el = document.getElementById(id); if(el) el.style.width = w; };
+    setW("gyroTiltBar",  Math.min(100,(tilt/90)*100)+'%');
+    setW("gyroSpinBar",  Math.min(100,(Math.abs(y)/180)*100)+'%');
+    setW("gyroRollBar2", Math.min(100,(Math.abs(r)/180)*100)+'%');
+
+    // อัปเดต 3D rocket ถ้ามี
+    if (window._rocketSetAttitude) window._rocketSetAttitude(r, p, y);
+  }
+
+  // ---- Gyro raw (°/s) ----
+  if (gx !== undefined) { const el = document.getElementById("gyroGxDisp"); if(el) el.textContent = parseFloat(gx).toFixed(2); }
+  if (gy !== undefined) { const el = document.getElementById("gyroGyDisp"); if(el) el.textContent = parseFloat(gy).toFixed(2); }
+  if (gz !== undefined) { const el = document.getElementById("gyroGzDisp"); if(el) el.textContent = parseFloat(gz).toFixed(2); }
+
+  // ---- Accelerometer ----
+  if (ax !== undefined && ay !== undefined && az !== undefined) {
+    const mag = Math.sqrt(parseFloat(ax)**2 + parseFloat(ay)**2 + parseFloat(az)**2);
+    window._csAccelMagTarget = mag;
+    const el = document.getElementById("csAccelMag");
+    if (el) el.textContent = mag.toFixed(2);
+  }
+
+  // ---- Power Monitor ----
+  if (ampere !== undefined) { const el = document.getElementById("csAmpVal");  if(el) el.textContent = parseFloat(ampere).toFixed(0); }
+  if (voltage !== undefined){ const el = document.getElementById("csVoltVal"); if(el) el.textContent = parseFloat(voltage).toFixed(2); }
+  if (ohm !== undefined)    { const el = document.getElementById("csOhmVal");  if(el) el.textContent = parseFloat(ohm).toFixed(2); }
+  // คำนวณ ohm อัตโนมัติถ้าไม่มี field ohm
+  if (ohm === undefined && ampere && voltage && parseFloat(ampere) > 0) {
+    const calcOhm = parseFloat(voltage) / (parseFloat(ampere)/1000);
+    const el = document.getElementById("csOhmVal");
+    if(el) el.textContent = calcOhm.toFixed(2);
+  }
+
+  // ---- Data Loss Rate ----
+  if (loss !== undefined && !isNaN(loss) && dataLossLinearChart) {
+    const tick2 = Date.now()/1000 | 0;
+    lossPoints.push({ x: lossPoints.length, y: parseFloat(loss) });
+    dataLossLinearChart.data.datasets[0].data = lossPoints;
+    dataLossLinearChart.data.datasets[1].data = getRegressionLine(lossPoints);
+    dataLossLinearChart.update("none");
+    resizeLossChart();
+    const lossEl = document.getElementById("lossVal");
+    if (lossEl) lossEl.textContent = parseFloat(loss).toFixed(1) + "%";
+  }
+
+  // ---- LoRa Terminal ----
+  const loraTerminal = document.getElementById("loraTerminal");
+  if (loraTerminal) {
+    const ts = timestamp ? timestamp.substr(11,8) : new Date().toISOString().substr(11,8);
+    const div = document.createElement("div");
+    div.className = "lora-line lora-new";
+    div.innerHTML = `<span class="lora-ts">${ts}</span><span class="lora-data">`
+      + `LAT:${lat?.toFixed(5)} LON:${lon?.toFixed(5)} ALT:${alt?.toFixed(1)}m `
+      + `RSSI:${rssi}dBm ROLL:${roll?.toFixed(1)} PITCH:${pitch?.toFixed(1)}`
+      + `</span>`;
+    loraTerminal.appendChild(div);
+    if (loraTerminal.children.length > 60) loraTerminal.removeChild(loraTerminal.firstChild);
+    loraTerminal.scrollTop = loraTerminal.scrollHeight;
+  }
+
+  // ---- Live badge ----
+  const liveDot = document.querySelector(".live-dot");
+  if (liveDot) {
+    liveDot.style.background = "#00f5c4";
+    setTimeout(() => { liveDot.style.background = ""; }, 500);
+  }
+});
+
+// ---- Connection status ----
+database.ref(".info/connected").on("value", (snap) => {
+  const connected = snap.val();
+  const statusDot = document.querySelector(".status-dot");
+  if (statusDot) {
+    statusDot.style.background = connected ? "#00f5c4" : "#ff4e6a";
+    statusDot.title = connected ? "Firebase Connected" : "Firebase Disconnected";
+  }
+  console.log("[Firebase]", connected ? "Connected" : "Disconnected");
+});
+
 const tooltipEl = document.createElement('div');
 tooltipEl.id = 'chartTooltip';
 tooltipEl.style.cssText = `
@@ -136,34 +319,72 @@ const chartDefaults = {
 
 const labels = Array.from({length: 40}, (_, i) => i.toString());
 
-// --- Kalman Altitude ---
+// --- Kalman Altitude (Scatter + Linear Regression) ---
 const altKCtx = document.getElementById('altKalmanChart').getContext('2d');
-const altKData = Array.from({length: 40}, (_, i) => Math.max(0, 120 + i * 3.5 + Math.sin(i * 0.4) * 4));
+// altKData starts empty — points appear one by one via liveUpdate()
+const altKData = [];
+let altKMockVal = 0; // mock altitude starts at 0
+
+function getAltKRegression(pts) {
+  if (pts.length < 2) return [];
+  const n = pts.length;
+  let sumX=0, sumY=0, sumXY=0, sumX2=0;
+  pts.forEach(p => { sumX+=p.x; sumY+=p.y; sumXY+=p.x*p.y; sumX2+=p.x*p.x; });
+  const denom = n*sumX2 - sumX*sumX;
+  if (denom === 0) return [];
+  const m = (n*sumXY - sumX*sumY) / denom;
+  const b = (sumY - m*sumX) / n;
+  const xs = pts.map(p=>p.x);
+  const xMin = Math.min(...xs), xMax = Math.max(...xs);
+  return [{ x: xMin, y: m*xMin+b }, { x: xMax, y: m*xMax+b }];
+}
+
 const altKChart = new Chart(altKCtx, {
-  type: 'line',
+  type: 'scatter',
   data: {
-    labels,
-    datasets: [{
-      data: altKData,
-      borderColor: '#98FB98',
-      borderWidth: 2,
-      pointRadius: 0,
-      fill: true,
-      backgroundColor: (ctx) => {
-        const g = ctx.chart.ctx.createLinearGradient(0,0,0,130);
-        g.addColorStop(0,'rgba(152,251,152,0.22)');
-        g.addColorStop(1,'rgba(152,251,152,0.01)');
-        return g;
+    datasets: [
+      {
+        label: 'Kalman Alt',
+        data: [],
+        backgroundColor: 'rgba(152,251,152,0.80)',
+        pointRadius: 3,
+        pointHoverRadius: 5,
+        pointBorderWidth: 0,
+        order: 2
       },
-      tension: 0.4
-    }]
+      {
+        label: 'Trend',
+        data: [],
+        type: 'line',
+        borderColor: 'rgba(152,251,152,0.55)',
+        borderWidth: 1.5,
+        backgroundColor: 'transparent',
+        fill: false,
+        pointRadius: 0,
+        tension: 0,
+        order: 1
+      }
+    ]
   },
-  options: { ...chartDefaults, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, min: 0 } }}
+  options: {
+    ...chartDefaults,
+    scales: {
+      x: {
+        type: 'linear',
+        grid: { color: 'rgba(0,245,196,0.05)', lineWidth: 1 },
+        ticks: { color: '#3a8070', font: { size: 8, family: 'DM Mono' }, maxTicksLimit: 6 }
+      },
+      y: {
+        ...chartDefaults.scales.y,
+        min: 0
+      }
+    }
+  }
 });
 
 // --- Raw Altitude ---
 const altRCtx = document.getElementById('altRawChart').getContext('2d');
-const altRData = altKData.map(v => v + (Math.random() - 0.5) * 18);
+const altRData = Array.from({length: 40}, () => 0);
 const altRChart = new Chart(altRCtx, {
   type: 'line',
   data: {
@@ -451,75 +672,66 @@ function updateClock() {
   document.getElementById('elapsedVal').textContent = elapsedSec + 's';
 }
 
-// ===== GROUND STATION — GOOGLE MAPS =====
+// ===== GROUND STATION — LEAFLET MAP =====
 (function initGroundMap() {
   const BASE_LAT = 13.5751993;
   const BASE_LNG = 100.5714753;
 
-  let groundMapKey = '';
-  let lastGroundMapUpdate = 0;
-  let currentLat = BASE_LAT;
-  let currentLng = BASE_LNG;
+  // Init Leaflet map
+  const groundMap = L.map('groundLeafletMap', {
+    center: [BASE_LAT, BASE_LNG],
+    zoom: 17,
+    zoomControl: true,
+    attributionControl: false
+  });
 
-  function buildSrc(lat, lng) {
-    return 'https://www.google.com/maps/embed/v1/view'
-         + '?key=' + groundMapKey
-         + '&center=' + lat + ',' + lng
-         + '&zoom=19&maptype=satellite';
-  }
+  // OpenStreetMap tile — ดูคล้าย Google Maps
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '© OpenStreetMap'
+  }).addTo(groundMap);
+
+  // Custom green marker icon
+  const greenIcon = L.divIcon({
+    className: '',
+    html: `<div style="
+      width:14px;height:14px;border-radius:50%;
+      background:#98FB98;
+      box-shadow:0 0 12px #98FB98, 0 0 24px rgba(152,251,152,0.6);
+      border:2px solid rgba(152,251,152,0.8);
+      position:relative;">
+      <div style="
+        position:absolute;inset:-8px;border-radius:50%;
+        border:1.5px solid rgba(152,251,152,0.5);
+        animation:pingAnim 1.8s ease-out infinite;">
+      </div>
+    </div>`,
+    iconSize: [14, 14],
+    iconAnchor: [7, 7]
+  });
+
+  const groundMarker = L.marker([BASE_LAT, BASE_LNG], { icon: greenIcon }).addTo(groundMap);
 
   function refreshMap(lat, lng) {
-    currentLat = lat;
-    currentLng = lng;
-
-    const latEl = document.getElementById('latVal');
-    const lonEl = document.getElementById('lonVal');
+    const latEl  = document.getElementById('latVal');
+    const lonEl  = document.getElementById('lonVal');
     const titleEl = document.getElementById('mapCoordTitle');
-    if (latEl) latEl.textContent = lat.toFixed(6);
-    if (lonEl) lonEl.textContent = lng.toFixed(6);
+    if (latEl)   latEl.textContent  = lat.toFixed(6);
+    if (lonEl)   lonEl.textContent  = lng.toFixed(6);
     if (titleEl) titleEl.textContent = lat.toFixed(4) + ', ' + lng.toFixed(4);
 
-    if (!groundMapKey) return;
-
-    const now = Date.now();
-    if (now - lastGroundMapUpdate >= 5000) {
-      const iframe = document.getElementById('groundGoogleMap');
-      if (iframe) {
-        iframe.src = buildSrc(lat, lng);
-        lastGroundMapUpdate = now;
-      }
-    }
+    groundMarker.setLatLng([lat, lng]);
+    groundMap.panTo([lat, lng]);
   }
-
-  window.applyGroundMapKey = function () {
-    const input = document.getElementById('groundMapKeyInput');
-    const key = input ? input.value.trim() : '';
-    if (!key) {
-      if (input) {
-        input.style.borderColor = '#ff4e6a';
-        setTimeout(() => { input.style.borderColor = ''; }, 1200);
-      }
-      return;
-    }
-    groundMapKey = key;
-    window._groundMapKey = key;
-
-    const overlay = document.getElementById('groundMapKeyOverlay');
-    if (overlay) {
-      overlay.style.transition = 'opacity 0.4s';
-      overlay.style.opacity = '0';
-      setTimeout(() => { overlay.style.display = 'none'; }, 400);
-    }
-
-    const iframe = document.getElementById('groundGoogleMap');
-    if (iframe) {
-      iframe.src = buildSrc(currentLat, currentLng);
-      lastGroundMapUpdate = Date.now();
-    }
-  };
 
   window._groundMapRefresh = refreshMap;
   refreshMap(BASE_LAT, BASE_LNG);
+
+  // บอก Leaflet ให้ recalculate ขนาดหลัง layout เสร็จ
+  setTimeout(() => groundMap.invalidateSize(), 300);
+  if (window.ResizeObserver) {
+    new ResizeObserver(() => groundMap.invalidateSize()).observe(document.getElementById('groundLeafletMap'));
+  }
 })();
 
 // ============================================================
@@ -593,19 +805,18 @@ function updateTeamSignal(received) {
 }
 
 // ---- Simulate live updates ----
-let tick = 40;
+let tick = 0;
 let pktRx = 248, pktTx = 251;
 
 function liveUpdate() {
   tick++;
   const t = tick.toString();
 
-  // --- Altitude Kalman ---
-  const lastK = altKData[altKData.length - 1];
-  const newK = Math.max(0, lastK + (Math.random() - 0.45) * 5 + (tick < 80 ? 1.5 : -1.2));
-  altKData.push(newK); altKData.shift();
-  altKChart.data.labels.push(t); altKChart.data.labels.shift();
-  altKChart.data.datasets[0].data = [...altKData];
+  // --- Altitude Kalman (mock: add one point per tick from 0) ---
+  altKMockVal = Math.max(0, altKMockVal + (Math.random() - 0.42) * 5 + (tick < 80 ? 2.0 : -1.0));
+  altKData.push({ x: tick, y: parseFloat(altKMockVal.toFixed(2)) });
+  altKChart.data.datasets[0].data = altKData;
+  altKChart.data.datasets[1].data = getAltKRegression(altKData);
   altKChart.update('none');
 
   // --- Altitude Raw ---
@@ -624,7 +835,7 @@ function liveUpdate() {
 
   if (tick % 5 === 0 && dataLossLinearChart) {
     lossPoints.push({ x: tick, y: newLoss });
-    dataLossLinearChart.data.datasets[0].data = [...lossPoints];
+    dataLossLinearChart.data.datasets[0].data = lossPoints;
     dataLossLinearChart.data.datasets[1].data = getRegressionLine(lossPoints);
     dataLossLinearChart.update('none');
     resizeLossChart();
@@ -667,7 +878,7 @@ function liveUpdate() {
 }
 
 setInterval(updateClock, 1000);
-setInterval(liveUpdate, 800);
+//setInterval(liveUpdate, 800);
 updateClock();
 
 document.querySelectorAll('.card, .map-card, .stats-card, .attitude-card').forEach(el => {
@@ -689,11 +900,19 @@ document.querySelectorAll('.card, .map-card, .stats-card, .attitude-card').forEa
   let tRoll = 12, tPitch = -8, tYaw = 45;
   let vRoll = 0.14, vPitch = 0.09, vYaw = 0.17;
 
+  // โหมด: 'demo' = random simulation, 'live' = รับจาก Firebase
+  let liveMode = false;
+  window._rocketSetAttitude = function(r, p, y) {
+    liveMode = true;
+    tRoll  = parseFloat(r) || 0;
+    tPitch = parseFloat(p) || 0;
+    tYaw   = parseFloat(y) || 0;
+  };
+
   const scene    = new THREE.Scene();
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type    = THREE.PCFSoftShadowMap;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  renderer.shadowMap.enabled = false; // shadow ไม่จำเป็น ประหยัด GPU pass
   renderer.setClearColor(0x00080f, 1);
   mount.appendChild(renderer.domElement);
 
@@ -740,7 +959,6 @@ document.querySelectorAll('.card, .map-card, .stats-card, .attitude-card').forEa
 
   const bodyGeo = new THREE.CylinderGeometry(0.38, 0.38, 2.4, 32, 1);
   const body    = new THREE.Mesh(bodyGeo, bodyMat);
-  body.castShadow = true;
   rocket.add(body);
 
   const noseGeo = new THREE.ConeGeometry(0.38, 1.1, 32);
@@ -838,7 +1056,7 @@ document.querySelectorAll('.card, .map-card, .stats-card, .attitude-card').forEa
   horizon.rotation.x = Math.PI / 2;
   scene.add(horizon);
 
-  const particleCount = 60;
+  const particleCount = 30;
   const pPositions = new Float32Array(particleCount * 3);
   const pVelocities = [];
   const pLife = [];
@@ -853,7 +1071,7 @@ document.querySelectorAll('.card, .map-card, .stats-card, .attitude-card').forEa
   const particles = new THREE.Points(pGeo, pMat);
   rocket.add(particles);
 
-  const starCount = 300;
+  const starCount = 120;
   const starPos = new Float32Array(starCount * 3);
   for (let i = 0; i < starCount; i++) {
     starPos[i*3]=(Math.random()-0.5)*40; starPos[i*3+1]=(Math.random()-0.5)*40; starPos[i*3+2]=(Math.random()-0.5)*40-5;
@@ -882,16 +1100,21 @@ document.querySelectorAll('.card, .map-card, .stats-card, .attitude-card').forEa
 
   function animate() {
     requestAnimationFrame(animate);
+    if (!window._pageActive?.ground) return; // pause when not on ground page
     const now=performance.now(), dt=Math.min((now-prevTime)/1000,0.05);
     prevTime=now;
 
-    tRoll+=vRoll*dt*60; if(Math.abs(tRoll)>38) vRoll*=-1;
-    tPitch+=vPitch*dt*60; if(Math.abs(tPitch)>28) vPitch*=-1;
-    tYaw+=vYaw*dt*60;
-    if(tYaw>180) tYaw-=360;
-    if(tYaw<-180) tYaw+=360;
-
     const a=1-Math.pow(0.04,dt);
+
+    // ถ้าไม่มีข้อมูลจริง ให้ demo หมุนอัตโนมัติ
+    if (!liveMode) {
+      tRoll+=vRoll*dt*60; if(Math.abs(tRoll)>38) vRoll*=-1;
+      tPitch+=vPitch*dt*60; if(Math.abs(tPitch)>28) vPitch*=-1;
+      tYaw+=vYaw*dt*60;
+      if(tYaw>180) tYaw-=360;
+      if(tYaw<-180) tYaw+=360;
+    }
+
     sRoll+=(tRoll-sRoll)*a; sPitch+=(tPitch-sPitch)*a; sYaw+=(tYaw-sYaw)*a;
 
     rocket.rotation.set(sPitch*Math.PI/180, sYaw*Math.PI/180, sRoll*Math.PI/180, 'ZXY');
@@ -913,9 +1136,12 @@ document.querySelectorAll('.card, .map-card, .stats-card, .attitude-card').forEa
     pMat.opacity=0.7+Math.sin(now*0.01)*0.2;
     pMat.color.setHSL(0.07+Math.sin(now*0.003)*0.02,1.0,0.55);
 
-    document.getElementById('rollVal').textContent  = sRoll.toFixed(1);
-    document.getElementById('pitchVal').textContent = sPitch.toFixed(1);
-    document.getElementById('yawVal').textContent   = sYaw.toFixed(1);
+    // อัปเดต arc และ UI — เฉพาะตอน demo mode เท่านั้น (live mode ถูก update โดย Firebase listener)
+    if (!liveMode) {
+      document.getElementById('rollVal').textContent  = sRoll.toFixed(1);
+      document.getElementById('pitchVal').textContent = sPitch.toFixed(1);
+      document.getElementById('yawVal').textContent   = sYaw.toFixed(1);
+    }
     updateArc('rollArcFill',  sRoll/180);
     updateArc('pitchArcFill', sPitch/90);
     updateArc('yawArcFill',   sYaw/180);
@@ -1005,11 +1231,16 @@ document.querySelectorAll('.card, .map-card, .stats-card, .attitude-card').forEa
     }
   }
 
+  let _holoActive = true;
+  window._holoSetActive = v => { _holoActive = v; };
+
   function render(){
-    ctx.clearRect(0,0,W,H);
-    groups.forEach(renderGroup);
-    t+=1;
-    requestAnimationFrame(render);
+    if (_holoActive) {
+      ctx.clearRect(0,0,W,H);
+      groups.forEach(renderGroup);
+      t += 2.5; // compensate for lower fps
+    }
+    setTimeout(() => requestAnimationFrame(render), 50); // ~20fps
   }
 
   resize();
@@ -1017,11 +1248,18 @@ document.querySelectorAll('.card, .map-card, .stats-card, .attitude-card').forEa
 })();
 
 
+// ===== PAGE ACTIVE FLAGS =====
+window._pageActive = { ground: true, cansat: false };
+
 // ===== PAGE SWITCHER =====
 function showPage(name) {
   const current = document.querySelector('.page.page-active') || document.querySelector('.page[style*="block"]');
   const next = document.getElementById('page-' + name);
   if (current === next) return;
+
+  // pause/resume loops
+  window._pageActive.ground = (name === 'ground');
+  window._pageActive.cansat = (name === 'cansat');
 
   const icons = { ground: '🚀', cansat: '🥫' };
   document.querySelectorAll('.nav-item').forEach(n => {
@@ -1031,6 +1269,11 @@ function showPage(name) {
   if (name === 'cansat') {
     if(typeof initGauges==='function') initGauges();
     if(typeof initCansatDashboard==='function') initCansatDashboard();
+    // map อาจ init ตอน display:none → ต้อง invalidate หลัง page โชว์
+    setTimeout(() => {
+      const m = window._csMapInstance;
+      if (m) m.invalidateSize();
+    }, 500);
   }
 
   const ov = document.createElement('canvas');
@@ -1142,7 +1385,7 @@ function initCansatDashboard() {
   initGyroCompass();
   initCsMap();
   initCsAccel();
-  startCansatLive();
+  //startCansatLive();
 }
 
 let wheelInited = false;
@@ -1299,6 +1542,7 @@ function initGyroAxes() {
 
   function animateAxes() {
     requestAnimationFrame(animateAxes);
+    if (!window._pageActive?.cansat) return; // pause when not on cansat page
     tRoll  += vRoll * 0.3; if (Math.abs(tRoll)  > 40) vRoll  *= -1;
     tPitch += vPitch * 0.3; if (Math.abs(tPitch) > 30) vPitch *= -1;
     tYaw   += vYaw  * 0.3;
@@ -1373,6 +1617,7 @@ function initGyroHorizon() {
 
   function anim() {
     requestAnimationFrame(anim);
+    if (!window._pageActive?.cansat) return;
     const r = parseFloat(document.getElementById('gyroRollDisp')?.textContent) || 0;
     const p = parseFloat(document.getElementById('gyroPitchDisp')?.textContent) || 0;
     dispRoll  += (r - dispRoll) * 0.08;
@@ -1446,6 +1691,7 @@ function initGyroCompass() {
 
   function anim() {
     requestAnimationFrame(anim);
+    if (!window._pageActive?.cansat) return;
     const y = parseFloat(document.getElementById('gyroYawDisp')?.textContent) || 0;
     dispYaw += (y - dispYaw) * 0.08;
     draw();
@@ -1453,39 +1699,75 @@ function initGyroCompass() {
   anim();
 }
 
-// ---- 4. CanSat GPS Map ----
+// ---- 4. CanSat GPS Map (Leaflet) ----
 function initCsMap() {
   const baseLat = 13.5751993;
   const baseLng = 100.5714753;
 
-  let lastMapUpdate = 0;
+  // Init Leaflet map
+  const csMap = L.map('csLeafletMap', {
+    center: [baseLat, baseLng],
+    zoom: 17,
+    zoomControl: true,
+    attributionControl: false
+  });
+  window._csMapInstance = csMap;
 
-  function updateMapSrc(lat, lng) {
-    const now = Date.now();
-    if (now - lastMapUpdate < 5000) return;
-    lastMapUpdate = now;
+  // OpenStreetMap tile — ดูคล้าย Google Maps
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '© OpenStreetMap'
+  }).addTo(csMap);
 
-    const iframe = document.getElementById('csGoogleMap');
-    if (!iframe) return;
+  // Yellow marker icon for CanSat
+  const yellowIcon = L.divIcon({
+    className: '',
+    html: `<div style="
+      width:14px;height:14px;border-radius:50%;
+      background:#f5d800;
+      box-shadow:0 0 12px #f5d800, 0 0 24px rgba(245,216,0,0.6);
+      border:2px solid rgba(245,216,0,0.8);
+      position:relative;">
+      <div style="
+        position:absolute;inset:-8px;border-radius:50%;
+        border:1.5px solid rgba(245,216,0,0.5);
+        animation:pingAnim 1.8s ease-out infinite;">
+      </div>
+    </div>`,
+    iconSize: [14, 14],
+    iconAnchor: [7, 7]
+  });
 
-    const key = window._groundMapKey || '';
-    if (!key) return;
+  const csMarker = L.marker([baseLat, baseLng], { icon: yellowIcon }).addTo(csMap);
 
-    iframe.src = `https://www.google.com/maps/embed/v1/view?key=${key}&center=${lat},${lng}&zoom=18&maptype=satellite`;
-  }
+  // Track trail path
+  const trailCoords = [[baseLat, baseLng]];
+  const trailLine = L.polyline(trailCoords, {
+    color: 'rgba(245,216,0,0.5)',
+    weight: 2,
+    dashArray: '4 4'
+  }).addTo(csMap);
 
-  setInterval(() => {
-    const lat = parseFloat((baseLat + (Math.random()-0.5)*0.0003).toFixed(6));
-    const lng = parseFloat((baseLng + (Math.random()-0.5)*0.0003).toFixed(6));
+  // Expose refresh function for Firebase listener
+  window._csMapRefresh = function(lat, lng) {
+    csMarker.setLatLng([lat, lng]);
+    csMap.panTo([lat, lng]);
+    trailCoords.push([lat, lng]);
+    if (trailCoords.length > 200) trailCoords.shift();
+    trailLine.setLatLngs(trailCoords);
 
     const e = id => document.getElementById(id);
-    if(e('csLatVal'))     e('csLatVal').textContent     = lat;
-    if(e('csLonVal'))     e('csLonVal').textContent     = lng;
-    if(e('csLatOverlay')) e('csLatOverlay').textContent = lat;
-    if(e('csLonOverlay')) e('csLonOverlay').textContent = lng;
+    if(e('csLatVal'))     e('csLatVal').textContent     = lat.toFixed(6);
+    if(e('csLonVal'))     e('csLonVal').textContent     = lng.toFixed(6);
+    if(e('csLatOverlay')) e('csLatOverlay').textContent = lat.toFixed(6);
+    if(e('csLonOverlay')) e('csLonOverlay').textContent = lng.toFixed(6);
+  };
 
-    updateMapSrc(lat, lng);
-  }, 900);
+  // บอก Leaflet ให้ recalculate ขนาดหลัง layout เสร็จ
+  setTimeout(() => csMap.invalidateSize(), 400);
+  if (window.ResizeObserver) {
+    new ResizeObserver(() => csMap.invalidateSize()).observe(document.getElementById('csLeafletMap'));
+  }
 }
 
 // ---- 5. Accel Gauge ----
@@ -1550,6 +1832,7 @@ function initCsAccel() {
 
   function anim() {
     requestAnimationFrame(anim);
+    if (!window._pageActive?.cansat) return;
     const target = parseFloat(window._csAccelMagTarget || 9.8);
     dispMag += (target - dispMag) * 0.08;
     draw(dispMag);
@@ -1659,8 +1942,9 @@ function parseSerialLine(line) {
     const altR = parseFloat(parts[1]);
 
     if (!isNaN(altK)) {
-      altKData.push(altK); altKData.shift();
-      altKChart.data.datasets[0].data = [...altKData];
+      altKData.push({ x: altKData.length, y: altK });
+      altKChart.data.datasets[0].data = altKData;
+      altKChart.data.datasets[1].data = getAltKRegression(altKData);
       altKChart.update('none');
     }
     if (!isNaN(altR)) {
